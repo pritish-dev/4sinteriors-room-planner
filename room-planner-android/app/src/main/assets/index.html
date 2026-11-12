@@ -82,6 +82,10 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .li{display:flex;align-items:center;gap:8px;padding:9px 6px;border-bottom:1px solid var(--line)}
 .li.on{background:#fbeef2;border-radius:8px}
 .li .dot{width:14px;height:14px;border-radius:4px;flex:none;border:1px solid rgba(0,0,0,.15)}
+.shades{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+.shades button{display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:16px;padding:5px 10px 5px 5px;font-size:12px;color:var(--ink)}
+.shades button.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.shades i{width:18px;height:18px;border-radius:50%;border:1px solid rgba(0,0,0,.15);flex:none}
 .li .t{flex:1;min-width:0;font-size:12.5px}
 .li .t div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .li .t small{color:var(--mute)}
@@ -89,6 +93,16 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .tot{display:flex;justify-content:space-between;font-weight:700;font-size:15px;padding:12px 6px}
 .note{font-size:11px;color:var(--mute);line-height:1.45;margin:8px 0}
 .empty{color:var(--mute);text-align:center;padding:18px 0}
+/* ---------- full screen ---------- */
+#fsExit{display:none;position:absolute;left:50%;top:10px;transform:translateX(-50%);z-index:5;border:0;background:rgba(42,38,34,.88);color:#fff;border-radius:20px;padding:9px 16px;font-size:13px;font-weight:600}
+body.fs>header,body.fs #side{display:none!important}
+body.fs #fsExit{display:block}
+body.fs #hint{display:none}
+#views button.on#dimsBtn{background:var(--ink);border-color:var(--ink);color:#fff}
+#custchip{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink);min-width:0}
+#custchip span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:30vw;font-weight:600}
+#custchip button{border:1px solid var(--line);background:var(--soft);border-radius:8px;padding:6px 8px;font-size:12px;color:var(--ink);flex:none}
+@media(max-width:520px){header h1{display:none}#custchip span{max-width:34vw}}
 /* ---------- login gate ---------- */
 #gate{display:none;position:fixed;inset:0;z-index:50;background:var(--bg);overflow-y:auto;padding:24px 16px}
 html.locked #gate{display:flex;align-items:center;justify-content:center}
@@ -130,6 +144,7 @@ html.locked body>header,html.locked #main{visibility:hidden}
   <div class="logo">4S</div>
   <h1>3D Room Planner<small>Interio by Godrej Patia</small></h1>
   <div class="sp"></div>
+  <div id="custchip" style="display:none"><span></span><button id="newcust" type="button" title="Start a design for another customer">New customer</button></div>
   <div class="unit"><button data-u="ft" class="on">ft</button><button data-u="m">m</button></div>
   <div id="userchip" style="display:none"><span></span><button id="signout" type="button">Sign out</button></div>
 </header>
@@ -143,7 +158,10 @@ html.locked body>header,html.locked #main{visibility:hidden}
       <button data-v="inside">Inside</button>
       <button data-v="spin">360°</button>
       <button data-v="look" id="lookBtn" title="Switch between catalogue photos and simple 3D shapes">Shapes</button>
+      <button data-v="dims" id="dimsBtn" class="on" title="Show or hide the room measurements">Sizes</button>
+      <button data-v="fs" id="fsBtn" title="Full screen">⛶ Full</button>
     </div>
+    <button id="fsExit" type="button">✕ Exit full screen</button>
     <div id="toast"></div>
     <div id="selbar">
       <div class="nm"></div>
@@ -169,10 +187,10 @@ html.locked body>header,html.locked #main{visibility:hidden}
       <div class="pane" id="p-items"></div>
     </div>
     <nav>
-      <button data-t="room">Room</button>
+      <button data-t="room">1 · Room</button>
       <button data-t="open">Doors &amp; Windows</button>
-      <button data-t="cat">Catalogue</button>
-      <button data-t="items">My room</button>
+      <button data-t="cat">2 · Catalogue</button>
+      <button data-t="items">3 · List &amp; share</button>
     </nav>
   </div>
 </div>
@@ -194,17 +212,18 @@ html.locked body>header,html.locked #main{visibility:hidden}
 <script src="catalog.js"></script>
 <script src="cutouts/index.js"></script>
 <script src="models/index.js"></script>
+<script src="colours.js"></script>
 <script>
 /* ===================== CATALOGUE (from catalog.js / images.js) ===================== */
 const CAT=window.CAT||[],BYID={};CAT.forEach(p=>BYID[p.id]=p);
 /* CUT[id]=[aspect, colour]: a cut-out of the product from its catalogue photo (cutouts/<id>.webp).
    MODELS[id]=file: an optional real 3D model (models/<file>.glb) supplied for the product. */
-const CUT=window.CUT||{}, MODELS=window.MODELS||{};
+const CUT=window.CUT||{}, CUTV=window.CUTV||{}, MODELS=window.MODELS||{}, COLOURS=window.COLOURS||{};
 const WOOD=['#5a3a2a','#6d4a33','#7a5638','#8a5f3c','#4a3226','#9a7450','#3f2d24','#70503a'];
 const FABRIC=['#6f7f8f','#8d8a84','#7a6a58','#3f5a66','#55606e','#b9a48a','#2f5d62','#8a6f5a','#4a3b35','#3c6480','#7d7f84','#9a7b4f'];
 const STEEL=['#7a2f45','#8f9aa3','#6b6e72','#b98a8a','#8a2a33','#e8e4dc','#5d6b7a','#a9b1a0'];
 function hash(s){let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))>>>0;return h}
-function defColor(p,v){if(CUT[p.id]&&v.t===p.v[0].t)return CUT[p.id][1];const h=hash(p.name);if(['sofa','lsofa','ottoman','achair'].includes(v.t))return FABRIC[h%FABRIC.length];if(v.t==='ochair')return '#2a2b30';if(v.t==='dchair')return FABRIC[(h+3)%FABRIC.length];if(v.t==='wardrobe'&&p.room==='Home Storage')return STEEL[h%STEEL.length];return WOOD[h%WOOD.length]}
+function defColor(p,v,vi){const cv=CUTV[p.id]&&CUTV[p.id][vi];if(cv)return cv[1];if(CUT[p.id]&&v.t===p.v[0].t)return CUT[p.id][1];const h=hash(p.name);if(['sofa','lsofa','ottoman','achair'].includes(v.t))return FABRIC[h%FABRIC.length];if(v.t==='ochair')return '#2a2b30';if(v.t==='dchair')return FABRIC[(h+3)%FABRIC.length];if(v.t==='wardrobe'&&p.room==='Home Storage')return STEEL[h%STEEL.length];return WOOD[h%WOOD.length]}
 function modelOf(p,v){const t=v.t,m={t},txt=p.sub+' '+p.fab.join(' ');
   if(t==='sofa'){const k=/(\d)\s*seater/i.exec(v.n);m.s=k?Math.min(4,+k[1]):Math.max(1,Math.min(4,Math.round((v.w-30)/62)))}
   if(t==='achair'){m.t='sofa';m.s=1}
@@ -221,13 +240,11 @@ const WALLS=['N','E','S','W'], WALLNAME={N:'Back wall',E:'Right wall',S:'Front w
 const WALLCOL=['#f4efe6','#e9e4da','#dfe7e4','#e6dfd3','#d9dfe8','#f1e3d3','#cfd8cf','#e8d5d0'];
 const ITEMCOL=['#5a3a2a','#8a5f3c','#c9a777','#e8e4dc','#8d8a84','#2a2b30','#3c6480','#2f5d62','#7a2f45','#a3262e','#b58b5a','#55606e'];
 let uid=1;
-let state={unit:'ft',
-  room:{w:14*FT,l:12*FT,h:10*FT,wall:'#f4efe6',floor:'wood'},
-  openings:[
-    {id:uid++,type:'door',wall:'E',pos:.8,w:.9,h:2.1,sill:0},
-    {id:uid++,type:'window',wall:'N',pos:.5,w:1.5,h:1.2,sill:.9},
-    {id:uid++,type:'window',wall:'W',pos:.5,w:1.2,h:1.2,sill:.9}],
-  items:[]};
+function blankState(room,unit){return {unit:unit||'ft',look:'photo',dims:true,customer:null,photos:[],
+  room:Object.assign({w:14*FT,l:12*FT,h:10*FT,wall:'#f4efe6',floor:'wood'},room||{}),
+  openings:[{id:uid++,type:'door',wall:'E',pos:.8,w:.9,h:2.1,sill:0}],
+  items:[]}}
+let state=blankState();
 let selId=null, tab=null;
 function sample(){
   state.items=[];const R=state.room,put=(f,pos)=>{if(f)addItem(f[0],f[1],pos,true)};
@@ -270,7 +287,7 @@ function setView(v){
   if(v==='top')flyTo({tx:0,ty:0,tz:0,r:fitR()*1.05,th:0,ph:.02,fov:50});
   if(v==='inside'){const r=Math.max(.8,Math.hypot(R.w,R.l)/2-.45),k=Math.round((cam.th-Math.atan2(R.w,R.l))/Math.PI);flyTo({tx:0,ty:1.05,tz:0,r,th:Math.atan2(R.w,R.l)+k*Math.PI,ph:Math.acos(Math.min(.9,.5/r)),fov:68})}
   if(v==='spin'){spin=true}
-  document.querySelectorAll('#views button:not(#lookBtn)').forEach(b=>b.classList.toggle('on',b.dataset.v==='spin'&&spin));
+  document.querySelectorAll('#views button[data-v=spin]').forEach(b=>b.classList.toggle('on',b.dataset.v==='spin'&&spin));
 }
 
 /* ---------- materials & textures ---------- */
@@ -333,8 +350,34 @@ function buildRoom(){
   const mx=Math.max(R.w,R.l);
   sun.position.set(R.w*.55,R.h*2.4,R.l*.85);sun.target.position.set(0,0,0);
   const sc=sun.shadow.camera;sc.left=-mx;sc.right=mx;sc.top=mx;sc.bottom=-mx;sc.near=.5;sc.far=R.h*2.4+mx*3;sc.updateProjectionMatrix();
+  buildDims();
   state.items.forEach(it=>{clampItem(it);syncItem(it)});
 }
+/* ---------- room measurements drawn in the 3D view ---------- */
+function fmtLen(m){const ft=m/FT;return state.unit==='ft'?`${(Math.round(ft*10)/10)} ft (${m.toFixed(2)} m)`:`${m.toFixed(2)} m (${(Math.round(ft*10)/10)} ft)`}
+function labelSprite(text,sub){const c=document.createElement('canvas'),g=c.getContext('2d');const f=44;g.font=`700 ${f}px system-ui,sans-serif`;
+  const w=Math.ceil(Math.max(g.measureText(text).width,sub?g.measureText(sub).width*.62:0))+44,h=sub?f*2.1:f*1.5;c.width=w;c.height=h;
+  g.fillStyle='rgba(138,21,56,.94)';const r=18;g.beginPath();g.moveTo(r,0);g.arcTo(w,0,w,h,r);g.arcTo(w,h,0,h,r);g.arcTo(0,h,0,0,r);g.arcTo(0,0,w,0,r);g.fill();
+  g.fillStyle='#fff';g.textAlign='center';g.textBaseline='middle';g.font=`700 ${f}px system-ui,sans-serif`;g.fillText(text,w/2,sub?h*.36:h/2);
+  if(sub){g.font=`500 ${f*.62}px system-ui,sans-serif`;g.fillText(sub,w/2,h*.74)}
+  const t=new T.CanvasTexture(c);t.encoding=T.sRGBEncoding;const sp=new T.Sprite(new T.SpriteMaterial({map:t,depthTest:false,depthWrite:false,sizeAttenuation:false}));
+  // fixed on-screen size (px) so the measurements stay readable on a phone at any zoom
+  sp.userData.px=sub?34:24;sp.userData.ar=w/h;sp.renderOrder=20;sizeLabel(sp);return sp}
+function sizeLabel(sp){const H=Math.max(200,stage.clientHeight||600),f=Math.tan(camera.fov*Math.PI/360),k=sp.userData.px*Math.min(1,Math.max(.72,H/520))*2*f/H;sp.scale.set(k*sp.userData.ar,k,1)}
+function dimLine(g,a,b,mat){const geo=new T.BufferGeometry().setFromPoints([a,b]);const l=new T.Line(geo,mat);l.renderOrder=19;g.add(l)}
+function buildDims(){const R=state.room,g=new T.Group();g.name='dims';g.visible=state.dims!==false;roomG.add(g);
+  const mat=new T.LineBasicMaterial({color:0x8a1538,depthTest:false,transparent:true}),off=WT+.35,tk=.12,V=(x,y,z)=>new T.Vector3(x,y,z);
+  // width (along the front edge)
+  let z=R.l/2+off;dimLine(g,V(-R.w/2,.01,z),V(R.w/2,.01,z),mat);[-1,1].forEach(s=>dimLine(g,V(s*R.w/2,.01,z-tk),V(s*R.w/2,.01,z+tk),mat));
+  let sp=labelSprite('Width '+fmtLen(R.w));sp.position.set(0,.05,z);g.add(sp);
+  // length (along the right edge)
+  let x=R.w/2+off;dimLine(g,V(x,.01,-R.l/2),V(x,.01,R.l/2),mat);[-1,1].forEach(s=>dimLine(g,V(x-tk,.01,s*R.l/2),V(x+tk,.01,s*R.l/2),mat));
+  sp=labelSprite('Length '+fmtLen(R.l));sp.position.set(x,.05,0);g.add(sp);
+  // height (back-left corner, where it stays in view)
+  x=-R.w/2-off*.5;z=-R.l/2-off*.5;dimLine(g,V(x,0,z),V(x,R.h,z),mat);[0,R.h].forEach(y=>dimLine(g,V(x-tk,y,z),V(x+tk,y,z),mat));
+  sp=labelSprite('Height '+fmtLen(R.h));sp.position.set(x,R.h/2,z);g.add(sp);
+  const a=(R.w*R.l)/(FT*FT);sp=labelSprite(`${Math.round(a)} sq ft`,`${(R.w*R.l).toFixed(1)} m² floor`);sp.userData.px=30;sizeLabel(sp);sp.position.set(0,.04,0);sp.name='area';g.add(sp)}
+function setDims(on){state.dims=on;const g=roomG.getObjectByName('dims');if(g)g.visible=on;document.getElementById('dimsBtn').classList.toggle('on',on);save()}
 function updateWallVis(){
   const R=state.room,p=camera.position,m=.02;
   wallG.N.visible=!(p.z<-R.l/2-m);wallG.S.visible=!(p.z>R.l/2+m);
@@ -346,9 +389,28 @@ function updateWallVis(){
 // The photo shows the product's main piece (e.g. the dining set for its table sizes), so a
 // different piece sold with it (e.g. the matching chair) is drawn as a shape instead.
 function photoFits(it){const p=BYID[it.pid];return !!(p&&p.v[it.vi]&&p.v[it.vi].t===p.v[0].t)}
-function lookOf(it){if(MODELS[it.pid])return 'glb';if(state.look!=='shape'&&CUT[it.pid]&&photoFits(it))return 'photo';return null}
+// Cut-out for this exact piece: a per-size one (sofa sets split into 3/2/1 seaters) or
+// the product's own photo when it shows this piece.
+function cutOf(it){if(it.pid==null)return null;const v=CUTV[it.pid]&&CUTV[it.pid][it.vi];if(v)return {ar:v[0],col:v[1],file:it.pid+'_'+it.vi};
+  if(CUT[it.pid]&&photoFits(it))return {ar:CUT[it.pid][0],col:CUT[it.pid][1],file:String(it.pid)};return null}
+function lookOf(it){if(it.pid!=null&&MODELS[it.pid])return 'glb';if(state.look!=='shape'&&cutOf(it))return 'photo';return null}
 const cutTexCache={};
-function cutTex(pid){if(!cutTexCache[pid]){const t=new T.TextureLoader().load('cutouts/'+pid+'.webp');t.encoding=T.sRGBEncoding;t.anisotropy=4;cutTexCache[pid]=t}return cutTexCache[pid]}
+function cutTex(file,tint,base){const key=file+(tint?'|'+tint:'');if(cutTexCache[key])return cutTexCache[key];
+  let t;if(!tint){t=new T.TextureLoader().load('cutouts/'+file+'.webp')}
+  else{const c=document.createElement('canvas');t=new T.CanvasTexture(c);const img=new Image();
+    img.onload=()=>{c.width=img.width;c.height=img.height;const g=c.getContext('2d');g.drawImage(img,0,0);recolour(g,c.width,c.height,base,tint);t.needsUpdate=true};img.src='cutouts/'+file+'.webp'}
+  t.encoding=T.sRGBEncoding;t.anisotropy=4;cutTexCache[key]=t;return t}
+// Colour preview on a catalogue photo: shift the product's main colour to the chosen
+// shade while keeping the photo's light and shadow (dark legs and shadows stay as they are).
+function recolour(g,w,h,base,tint){const d=g.getImageData(0,0,w,h),p=d.data,B=new T.Color(base),C=new T.Color(tint);
+  const lum=c=>.2126*c.r+.7152*c.g+.0722*c.b,lb=Math.max(.08,lum(B)),tr=C.r*255,tg=C.g*255,tb=C.b*255;
+  const bh={},ch={};B.getHSL(bh);C.getHSL(ch);
+  for(let i=0;i<p.length;i+=4){if(p[i+3]<8)continue;const r=p[i]/255,gg=p[i+1]/255,b=p[i+2]/255,L=.2126*r+.7152*gg+.0722*b;
+    const mx=Math.max(r,gg,b),mn=Math.min(r,gg,b),sat=mx-mn;
+    // how close this pixel is to the product's main colour (upholstery/body) vs. legs, chrome, cushions
+    const near=Math.max(0,1-(Math.abs(L-lb)/(lb+.25)))*(L>.06?1:0);const k=Math.min(1,near*1.25)*.9;if(k<=0)continue;
+    const f=L/lb;p[i]=p[i]*(1-k)+Math.min(255,tr*f)*k;p[i+1]=p[i+1]*(1-k)+Math.min(255,tg*f)*k;p[i+2]=p[i+2]*(1-k)+Math.min(255,tb*f)*k}
+  g.putImageData(d,0,0)}
 let shadowTex=null;
 function contactShadow(g,w,d){
   if(!shadowTex){shadowTex=canvasTex((c,S)=>{const r=c.createRadialGradient(S/2,S/2,0,S/2,S/2,S/2);r.addColorStop(0,'rgba(0,0,0,.42)');r.addColorStop(.6,'rgba(0,0,0,.2)');r.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=r;c.fillRect(0,0,S,S)},128);shadowTex.wrapS=shadowTex.wrapT=T.ClampToEdgeWrapping}
@@ -359,10 +421,10 @@ function pickBox(g,w,h,d){const b=new T.Mesh(new T.BoxGeometry(w,h,d),new T.Mesh
 // stood in the room at its real size. It always turns to face the viewer, like a
 // life-size cardboard photo, and lies back to face the camera in the top view.
 function photoGroup(it){
-  const g=new T.Group(),ar=CUT[it.pid][0],w=it.w,d=it.d,h=it.h;
+  const cu=cutOf(it),g=new T.Group(),ar=cu.ar,w=it.w,d=it.d,h=it.h;
   let H=h+.3*Math.min(d,1.2),W=H*ar;const maxW=1.2*(w+d);if(W>maxW){W=maxW;H=W/ar}
   const geo=new T.PlaneGeometry(W,H);geo.translate(0,H/2,0);
-  const pl=new T.Mesh(geo,new T.MeshBasicMaterial({map:cutTex(it.pid),transparent:true,alphaTest:.04,side:T.DoubleSide}));
+  const pl=new T.Mesh(geo,new T.MeshBasicMaterial({map:cutTex(cu.file,it.shade?it.color:null,cu.col),transparent:true,alphaTest:.04,side:T.DoubleSide}));
   const piv=new T.Group();piv.rotation.order='YXZ';piv.name='bb';piv.add(pl);g.add(piv);
   contactShadow(g,w,d);pickBox(g,w,h,d);
   return g}
@@ -475,7 +537,7 @@ function clampItem(it){const f=footprint(it),R=state.room,mx=Math.max(0,R.w/2-f.
 function addItem(p,vi,pos,quiet){
   if(!p||!p.v[vi])return;const v=p.v[vi];
   const n=state.items.length,nm=p.name+(v.n&&!p.name.toLowerCase().includes(v.n.toLowerCase())?' – '+v.n:'');
-  const it={id:uid++,pid:p.id,vi,name:nm,m:modelOf(p,v),w:v.w/100,d:v.d/100,h:v.h/100,est:v.est||'',color:defColor(p,v),
+  const it={id:uid++,pid:p.id,vi,name:nm,m:modelOf(p,v),w:v.w/100,d:v.d/100,h:v.h/100,est:v.est||'',color:defColor(p,v,vi),
     x:pos?pos.x:((n%3)-1)*.35,z:pos?pos.z:((n%2)-.5)*.4,rot:pos?pos.rot:0};
   state.items.push(it);clampItem(it);syncItem(it);
   if(!quiet){select(it.id);toast('Added — drag it into place');save();renderItems()}
@@ -495,7 +557,7 @@ function pickItem(e){ray.setFromCamera(ndc(e),camera);const hits=ray.intersectOb
 function floorPt(e){ray.setFromCamera(ndc(e),camera);const v=new T.Vector3();return ray.ray.intersectPlane(floorPlane,v)?v:null}
 cv.addEventListener('pointerdown',e=>{
   cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});anim=null;
-  if(spin){spin=false;document.querySelectorAll('#views button:not(#lookBtn)').forEach(b=>b.classList.remove('on'))}
+  if(spin){spin=false;document.querySelectorAll('#views button[data-v=spin]').forEach(b=>b.classList.remove('on'))}
   if(ptrs.size===1){down={x:e.clientX,y:e.clientY};moved=false;
     const it=(e.button===0&&!e.shiftKey)?pickItem(e):null;
     if(it){select(it.id);const p=floorPt(e);dragOff=p?{x:it.x-p.x,z:it.z-p.z}:{x:0,z:0};mode='drag'}
@@ -521,10 +583,18 @@ cv.addEventListener('wheel',e=>{e.preventDefault();anim=null;cam.r=Math.max(.6,M
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 document.getElementById('selbar').addEventListener('click',e=>{const a=e.target.dataset.a,it=getItem(selId);if(!a||!it)return;
   if(a==='rl')it.rot+=Math.PI/12;if(a==='rr')it.rot-=Math.PI/12;if(a==='r90')it.rot=Math.round((it.rot+Math.PI/2)/(Math.PI/2))*(Math.PI/2);
-  if(a==='dup'){const n=addItem(BYID[it.pid],it.vi,{x:it.x+.3,z:it.z+.3,rot:it.rot},true);if(!n)return;Object.assign(n,{w:it.w,d:it.d,h:it.h,color:it.color,m:{...it.m}});clampItem(n);syncItem(n,true);select(n.id);toast('Copied');save();renderItems();return}
+  if(a==='dup'){const n=addItem(BYID[it.pid],it.vi,{x:it.x+.3,z:it.z+.3,rot:it.rot},true);if(!n)return;Object.assign(n,{w:it.w,d:it.d,h:it.h,color:it.color,shade:it.shade||'',m:{...it.m}});clampItem(n);syncItem(n,true);select(n.id);toast('Copied');save();renderItems();return}
   if(a==='del'){removeItem(it.id);return}
   clampItem(it);syncItem(it);save();if(tab==='items')renderItems()});
-document.getElementById('views').addEventListener('click',e=>{const v=e.target.dataset.v;if(v==='look'){setLook(state.look==='shape'?'photo':'shape');return}if(v)setView(v)});
+document.getElementById('views').addEventListener('click',e=>{const v=e.target.dataset.v;if(v==='look'){setLook(state.look==='shape'?'photo':'shape');return}
+  if(v==='dims'){setDims(state.dims===false);return}if(v==='fs'){setFull(!document.body.classList.contains('fs'));return}if(v)setView(v)});
+function setFull(on){document.body.classList.toggle('fs',on);
+  try{if(window.RPNative&&RPNative.setFullscreen)RPNative.setFullscreen(!!on);
+    else if(on&&document.documentElement.requestFullscreen&&!document.fullscreenElement)document.documentElement.requestFullscreen().catch(()=>{});
+    else if(!on&&document.fullscreenElement)document.exitFullscreen().catch(()=>{})}catch(e){}
+  setTimeout(resize,60)}
+document.getElementById('fsExit').addEventListener('click',()=>setFull(false));
+document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&document.body.classList.contains('fs'))setFull(false)});
 function updateLookBtn(){const b=document.getElementById('lookBtn');b.textContent=state.look==='shape'?'Photos':'Shapes'}
 function setLook(l){state.look=l;state.items.forEach(it=>syncItem(it,true));updateLookBtn();save();
   toast(l==='shape'?'Showing simple 3D shapes':'Showing catalogue photos');if(tab==='items')renderItems()}
@@ -549,7 +619,9 @@ function renderRoom(){
   <p class="note">Floor area: ${(R.w*R.l/(FT*FT)).toFixed(0)} sq ft (${(R.w*R.l).toFixed(1)} m²)</p>
   <h2>Floor</h2><div class="seg" id="floors">${Object.keys(FLOORS).map(k=>`<button data-f="${k}" class="${R.floor===k?'on':''}">${FLOORS[k].name}</button>`).join('')}</div>
   <h2>Wall colour</h2><div class="sw" id="wcols">${WALLCOL.map(c=>`<button data-c="${c}" style="background:${c}" class="${R.wall===c?'on':''}" aria-label="wall colour"></button>`).join('')}</div>
-  <div class="grid2"><button class="btn ghost" id="bSample">Load sample layout</button><button class="btn ghost" id="bClear">Remove all furniture</button></div>`;
+  <h2>Room photos</h2><div id="roomPhotos"></div>
+  <div class="grid2" style="margin-top:12px"><button class="btn ghost" id="bResize">Change room size</button><button class="btn ghost" id="bClear">Remove all furniture</button></div>`;
+  if(window.RPFlow)RPFlow.renderPhotos(document.getElementById('roomPhotos'));
 }
 $('#p-room').addEventListener('change',e=>{const k=e.target.dataset.k;if(!k)return;const R=state.room;
   const lim=k==='h'?[2.1,6]:[1.5,20];R[k]=num(fromU(parseFloat(e.target.value)),lim[0],lim[1],R[k]);buildRoom();renderRoom();save();setView('corner');cornerIx=(cornerIx+3)%4});
@@ -557,7 +629,7 @@ $('#p-room').addEventListener('click',e=>{const b=e.target.closest('button');if(
   if(b.dataset.f){state.room.floor=b.dataset.f;buildRoom();renderRoom();save()}
   if(b.dataset.c){state.room.wall=b.dataset.c;buildRoom();renderRoom();save()}
   if(b.id==='bClear'){state.items.slice().forEach(i=>removeItem(i.id));toast('Room cleared')}
-  if(b.id==='bSample'){state.items.slice().forEach(i=>removeItem(i.id));sample();save();renderItems();toast('Sample layout loaded')}});
+  if(b.id==='bResize'&&window.RPFlow)RPFlow.showRoom(true)});
 
 function renderOpen(){
   const u=state.unit,st=u==='ft'?.25:.05;
@@ -598,7 +670,7 @@ const ICON={sofa:'<rect x="6" y="24" width="52" height="20" rx="5"/><rect x="12"
  cabinet:'<rect x="10" y="14" width="44" height="40" rx="3"/><line x1="10" y1="34" x2="54" y2="34" stroke="#fff" stroke-width="2"/>',
  ottoman:'<rect x="12" y="24" width="40" height="22" rx="6"/>',bench:'<rect x="4" y="26" width="56" height="8" rx="2"/><rect x="9" y="34" width="5" height="18"/><rect x="50" y="34" width="5" height="18"/>'};
 const ICONMAP={achair:'sofa',ctable:'table',stable:'table',nstand:'cabinet'};
-function icon(p){const t=p.v[0].t;return `<svg viewBox="0 0 64 64" fill="${defColor(p,p.v[0])}">${ICON[ICONMAP[t]||t]||ICON.cabinet}</svg>`}
+function icon(p){const t=p.v[0].t;return `<svg viewBox="0 0 64 64" fill="${defColor(p,p.v[0],0)}">${ICON[ICONMAP[t]||t]||ICON.cabinet}</svg>`}
 const ROOMS=['All',...new Set(CAT.map(p=>p.room))];let curRoom='All',curSub='',shown=24;
 function dimTxt(v){return `${Math.round(v.w)} × ${Math.round(v.d)} × ${Math.round(v.h)} cm${v.est?' ≈':''}`}
 function renderCat(){
@@ -611,7 +683,7 @@ function renderCat(){
   const IMG=window.IMG||{};
   $('#plist').innerHTML=list.length?list.slice(0,shown).map(p=>`<div class="prod">
    <div class="im">${IMG[p.id]?`<img loading="lazy" src="${IMG[p.id]}" alt="">`:icon(p)}</div>
-   <div class="bd"><div class="n">${esc(p.name)}</div><div class="d">${esc(p.sub)}${p.page?' · p.'+esc(p.page):''}</div>
+   <div class="bd"><div class="n">${esc(p.name)}</div><div class="d">${esc(p.sub)}${p.page?' · p.'+esc(p.page):''}${COLOURS[p.id]?` · <b>${COLOURS[p.id].length} colours</b>`:''}</div>
    ${p.v.map((v,i)=>`<button data-add="${p.id}:${i}">+ ${esc(v.n||'Add to room')}<small>${dimTxt(v)}</small></button>`).join('')}</div></div>`).join('')+
    (list.length>shown?`<button class="btn ghost more" id="more">Show more (${list.length-shown} left)</button>`:''):'<div class="empty">No products match.</div>';
 }
@@ -624,8 +696,8 @@ window.onImages=()=>{if(tab==='cat')renderCat()};
 
 function renderItems(){
   const el=$('#p-items');if(!el)return;const it=getItem(selId);
-  el.innerHTML=(state.items.length?`<h2>Furniture in this room (${state.items.length})</h2>`+state.items.map(i=>`<div class="li ${i.id===selId?'on':''}" data-id="${i.id}">
-    <span class="dot" style="background:${i.color}"></span><div class="t"><div>${esc(i.name)}</div><small>${Math.round(i.w*100)} × ${Math.round(i.d*100)} × ${Math.round(i.h*100)} cm${i.est?' ≈':''}</small></div></div>`).join(''):'<div class="empty">No furniture yet — open the Catalogue tab and add a product.</div>')+
+  el.innerHTML=(window.RPShare?RPShare.panel():'')+(state.items.length?`<h2>Furniture in this room (${state.items.length})</h2>`+state.items.map(i=>`<div class="li ${i.id===selId?'on':''}" data-id="${i.id}">
+    <span class="dot" style="background:${i.color}"></span><div class="t"><div>${esc(i.name)}</div><small>${i.src==='photo'?'From room photo · ':''}${Math.round(i.w*100)} × ${Math.round(i.d*100)} × ${Math.round(i.h*100)} cm${i.est?' ≈':''}${i.shade?' · '+esc(i.shade):''}</small></div></div>`).join(''):'<div class="empty">No furniture yet — open the Catalogue tab and add a product.</div>')+
   (it?`<div class="card" style="margin-top:10px"><div class="hd"><span>Edit selected</span><button data-del="${it.id}">Remove</button></div>
     <div class="grid3">
      <label class="f">Width (cm)<input type="number" inputmode="numeric" data-k="w" value="${Math.round(it.w*100)}"></label>
@@ -635,14 +707,26 @@ function renderItems(){
     ${it.est?'<p class="note">≈ Part of this size was not readable from the catalogue and is estimated — please check it.</p>':''}
     <label class="f" style="margin-top:8px">Rotation<input type="range" min="0" max="355" step="5" data-k="rot" value="${Math.round(((it.rot*180/Math.PI)%360+360)%360)}"></label>
     ${it.m.t==='lsofa'?'<button class="btn ghost" data-flip="1" style="margin-top:10px">Switch chaise to other side</button>':''}
-    <div class="f" style="margin-top:8px">Colour / finish</div><div class="sw" style="margin-bottom:0">${[...new Set([it.color,...ITEMCOL])].map(c=>`<button data-col="${c}" style="background:${c}" class="${it.color===c?'on':''}" aria-label="colour"></button>`).join('')}</div>
+    ${colourPicker(it)}
    </div>`:(state.items.length?'<p class="note">Tap an item above (or in the 3D view) to edit its size, rotation and colour.</p>':''))+
   `<p class="note">Sizes come from the Interio catalogue (W × D × H). In photo view each product is its own catalogue photo, cut out and stood at real size; it turns to face you, so “rotate” changes its floor space, not the photo. In shapes view products are simple 3D models in the catalogue colour.</p>`;
 }
 $('#p-items').addEventListener('click',e=>{const d=e.target.closest('[data-del]');if(d){removeItem(+d.dataset.del);return}
   if(e.target.closest('[data-flip]')){const it=getItem(selId);if(it){it.m.side=-(it.m.side||1);syncItem(it,true);save()}return}
-  const c=e.target.closest('[data-col]');if(c){const it=getItem(selId);if(it){it.color=c.dataset.col;syncItem(it,true);save();renderItems()}return}
+  const c=e.target.closest('[data-shade]');if(c){const it=getItem(selId);if(it){setShade(it,c.dataset.shade===''?null:+c.dataset.shade);renderItems()}return}
   const li=e.target.closest('.li');if(li)select(+li.dataset.id)});
+// Colours: only the shades this product is actually sold in (from the 4S Orders price
+// book). Products without a known colour list keep their catalogue colour.
+function colourPicker(it){const list=it.pid!=null&&COLOURS[it.pid];
+  if(!list)return `<p class="note" style="margin-bottom:0">${it.src==='photo'?'Colour taken from the room photo.':'Colour: as in the catalogue photo. No other colours are listed for this product.'}</p>`;
+  const cur=it.shade||'';
+  return `<div class="f" style="margin-top:8px">Available colours (${list.length})${cur?' — <b>'+esc(cur)+'</b>':''}</div><div class="shades">
+    <button data-shade="" class="${!cur?'on':''}"><i style="background:${defColor(BYID[it.pid],BYID[it.pid].v[it.vi],it.vi)}"></i>As photographed</button>
+    ${list.map((s,i)=>`<button data-shade="${i}" class="${cur===s.n?'on':''}"><i style="background:${s.c[0]}${s.c[1]?`;box-shadow:inset -8px 0 0 ${s.c[1]}`:''}"></i>${esc(s.n)}</button>`).join('')}</div>
+    ${lookOf(it)==='photo'&&cur?'<p class="note">Colour preview on the photo — please check the fabric/finish swatch in the showroom.</p>':''}`}
+function setShade(it,i){const p=BYID[it.pid],list=COLOURS[it.pid]||[];
+  if(i==null||!list[i]){it.shade='';it.color=defColor(p,p.v[it.vi],it.vi)}else{it.shade=list[i].n;it.color=list[i].c[0]}
+  syncItem(it,true);save()}
 function itemEdit(e,live){const k=e.target.dataset.k,it=getItem(selId);if(!k||!it)return;
   if(k==='rot')it.rot=parseFloat(e.target.value)*Math.PI/180;
   else{const lim={w:[.2,4],d:[.2,4],h:[.2,3]}[k];it[k]=num(parseFloat(e.target.value)/100,lim[0],lim[1],it[k]);it.est=''}
@@ -659,7 +743,7 @@ function setTab(t){
   $('#sheet').classList.toggle('open',!!t);if(t)RENDER[t]();
 }
 document.querySelector('nav').addEventListener('click',e=>{const t=e.target.dataset.t;if(t)setTab(t)});
-document.querySelector('.unit').addEventListener('click',e=>{const u=e.target.dataset.u;if(!u)return;state.unit=u;document.querySelectorAll('.unit button').forEach(b=>b.classList.toggle('on',b.dataset.u===u));save();if(tab)RENDER[tab]()});
+document.querySelector('.unit').addEventListener('click',e=>{const u=e.target.dataset.u;if(!u)return;state.unit=u;document.querySelectorAll('.unit button').forEach(b=>b.classList.toggle('on',b.dataset.u===u));buildRoom();save();if(tab)RENDER[tab]()});
 
 /* ===================== LOOP ===================== */
 function resize(){const w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();if(!anim&&lastView!=='inside'&&!ptrs.size)cam.r=fitR()*(lastView==='top'?1.05:1)}
@@ -668,25 +752,40 @@ let last=performance.now();
 function tick(now){
   const dt=Math.min(.05,(now-last)/1000);last=now;
   if(anim){anim.t=Math.min(1,anim.t+dt/.6);const e=1-Math.pow(1-anim.t,3);for(const k of ['tx','ty','tz','r','th','ph','fov'])cam[k]=anim.from[k]+(anim.to[k]-anim.from[k])*e;if(anim.t>=1)anim=null}
-  if(spin)cam.th+=dt*.35;
-  applyCam();updateWallVis();faceCamera();renderer.render(scene,camera);requestAnimationFrame(tick);
+  if(window.__camDriver)window.__camDriver(dt);else if(spin)cam.th+=dt*.35;
+  applyCam();updateWallVis();faceCamera();const dg=roomG.getObjectByName('dims');if(dg&&dg.visible)dg.children.forEach(o=>{if(o.isSprite)sizeLabel(o)});renderer.render(scene,camera);requestAnimationFrame(tick);
 }
 /* ===================== START ===================== */
 const restored=load();
 document.querySelectorAll('.unit button').forEach(b=>b.classList.toggle('on',b.dataset.u===state.unit));
-if(state.look!=='shape')state.look='photo';updateLookBtn();
+if(state.look!=='shape')state.look='photo';updateLookBtn();document.getElementById('dimsBtn').classList.toggle('on',state.dims!==false);
 resize();
 buildRoom();
-if(!restored)sample();else state.items.forEach(it=>syncItem(it));
+state.items.forEach(it=>syncItem(it));
 cam.r=fitR();cam.ty=state.room.h*.3;applyCam();
 setTab(wide()?'cat':null);
-window.__planner={state:()=>state,cam,setView,addItem,CAT,select};
+/* Used by flow.js (customer + room set-up), detect.js (room photos) and share.js. */
+function setProject(s){Object.keys(itemObj).forEach(id=>{const g=itemObj[id];itemsG.remove(g);disposeG(g);delete itemObj[id]});
+  state=s;selId=null;uid=Math.max(uid,1+Math.max(0,...s.items.map(i=>i.id),...s.openings.map(o=>o.id)));
+  document.querySelectorAll('.unit button').forEach(b=>b.classList.toggle('on',b.dataset.u===state.unit));updateLookBtn();
+  document.getElementById('dimsBtn').classList.toggle('on',state.dims!==false);
+  buildRoom();select(null);cam.r=fitR();cam.ty=state.room.h*.3;cornerIx=0;setView('corner');save();if(tab)RENDER[tab]()}
+function addCustom(spec){const it=Object.assign({id:uid++,pid:null,vi:0,est:'',x:0,z:0,rot:0},spec);state.items.push(it);clampItem(it);syncItem(it);return it}
+window.__planner={state:()=>state,cam,setView,addItem,addCustom,CAT,BYID,COLOURS,select,setProject,blankState,buildRoom,save,renderItems,
+  renderRoom:()=>{if(tab==='room')renderRoom()},setTab,toast,esc,FT,fmtLen,renderer,scene,camera,applyCam,fitR,resize,getItem,removeItem,syncItem,
+  newUid:()=>uid++,setSpin:v=>{spin=v},isSpin:()=>spin,lookOf,cutOf,wide,tabNow:()=>tab};
 requestAnimationFrame(tick);
 </script>
+<script src="flow.js"></script>
+<script src="detect.js"></script>
+<script src="share.js"></script>
 <script>
 /* Catalogue photos load only after sign-in. */
 AUTH.whenUnlocked(function(){if(window.IMG)return;const s=document.createElement('script');s.src='images.js';s.async=true;document.body.appendChild(s)});
-if('serviceWorker' in navigator&&location.protocol==='https:'&&!/androidplatform\.net$/.test(location.hostname))navigator.serviceWorker.register('sw.js').catch(()=>{});
+// Offline copy + updates: app files are fetched fresh whenever the phone is online, so a
+// new release is used the next time the app is opened (never in the middle of a design).
+if('serviceWorker' in navigator&&location.protocol==='https:'&&!/androidplatform\.net$/.test(location.hostname))
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
 </html>
