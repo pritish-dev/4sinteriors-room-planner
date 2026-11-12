@@ -1,4 +1,8 @@
 plugins { id 'com.android.application' }
+
+// versionCode comes from the CI run number so every new APK installs over the old one.
+def ciBuild = (System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger()
+
 android {
     namespace 'in.foursinteriors.roomplanner'
     compileSdk 34
@@ -6,9 +10,28 @@ android {
         applicationId 'in.foursinteriors.roomplanner'
         minSdk 26
         targetSdk 34
-        versionCode 1
-        versionName '1.0'
+        versionCode ciBuild
+        versionName "1.1.${ciBuild}"
+    }
+    // A fixed signing key (committed on purpose) so that every build — local or CI —
+    // is signed the same way and a newer APK installs as an update without
+    // uninstalling the old one. This app is distributed by direct download only.
+    signingConfigs {
+        shared {
+            storeFile file('roomplanner.keystore')
+            storePassword 'roomplanner'
+            keyAlias 'roomplanner'
+            keyPassword 'roomplanner'
+        }
+    }
+    buildTypes {
+        debug { signingConfig signingConfigs.shared }
+        release { signingConfig signingConfigs.shared; minifyEnabled false }
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
-    aaptOptions { noCompress 'js' }
+    androidResources { noCompress 'js', 'webp' }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.11.0'
 }

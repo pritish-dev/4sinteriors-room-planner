@@ -1,0 +1,54 @@
+name: Deploy web app to GitHub Pages
+
+# Publishes the same planner (room-planner-android/app/src/main/assets) as a web
+# app for iPhone and any browser:
+#   https://pritish-dev.github.io/4sinteriors-room-planner/
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'room-planner-android/app/src/main/assets/**'
+      - '.github/workflows/deploy-pages.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Assemble the site
+        run: |
+          mkdir -p _site
+          cp -r room-planner-android/app/src/main/assets/. _site/
+          # Stamp the offline cache with this commit so phones pick up every update.
+          sed -i "s/__BUILD__/${GITHUB_SHA:0:7}/g" _site/sw.js
+          touch _site/.nojekyll
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

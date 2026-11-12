@@ -1,0 +1,77 @@
+name: Build Android APK
+
+# Builds the installable Android APK of the Room Planner.
+#   • Every run uploads the APK as an Actions artifact ("RoomPlanner-apk").
+#   • Every build of master also refreshes the rolling "apk-latest" release, so this
+#     link always downloads the newest APK on a phone:
+#     https://github.com/pritish-dev/4sinteriors-room-planner/releases/latest/download/RoomPlanner.apk
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'room-planner-android/**'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build APK
+        working-directory: room-planner-android
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Rename APK
+        run: cp room-planner-android/app/build/outputs/apk/debug/app-debug.apk RoomPlanner.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RoomPlanner-apk
+          path: RoomPlanner.apk
+          if-no-files-found: error
+
+      - name: Publish rolling latest APK release (master only)
+        if: github.ref == 'refs/heads/master'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-latest
+          name: Room Planner (latest)
+          make_latest: true
+          files: RoomPlanner.apk
+          body: |
+            Latest installable Android build of the 4S Interiors 3D Room Planner
+            (auto-published from `master`, build ${{ github.run_number }}).
+
+            **To install:** download `RoomPlanner.apk` on an Android phone, open it and
+            allow "install from unknown sources" if asked. Sign in with your 4S Orders
+            app username and password.
+
+            **iPhone / any browser:** https://pritish-dev.github.io/4sinteriors-room-planner/
