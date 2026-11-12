@@ -1,0 +1,23 @@
+name: Diagnose login backend (temporary)
+on:
+  push:
+    branches: ['claude/**']
+    paths: ['.github/workflows/diag-login.yml']
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          U='https://script.google.com/macros/s/AKfycby4BXBlxp8fzQrXYR1U8OGt9GVM6ysEkoMVRtskw8_zc0JRzGKcoVd_GZgdl-1NZ_zlMA/exec'
+          echo "== GET getAppSerial without token (token support?)"
+          curl -sS -L "$U?action=getAppSerial&callback=cb" | head -c 400; echo
+          echo "== GET login JSONP, dummy user"
+          curl -sS -L "$U?action=login&username=zz_diag_nobody&password=x&callback=cb" | head -c 400; echo
+          for O in https://appassets.androidplatform.net https://pritish-dev.github.io; do
+            echo "== POST login, Origin $O"
+            curl -sS -L -D - -o body.txt -H "Origin: $O" -H 'Content-Type: text/plain' \
+              --data '{"action":"login","username":"zz_diag_nobody","password":"x"}' "$U" | grep -iE '^(HTTP|location|access-control|content-type)' 
+            head -c 400 body.txt; echo
+          done
+          echo "== OPTIONS preflight"
+          curl -sS -o /dev/null -w '%{http_code}\n' -X OPTIONS -H "Origin: https://appassets.androidplatform.net" -H "Access-Control-Request-Method: POST" "$U"
