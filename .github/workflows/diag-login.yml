@@ -1,23 +1,35 @@
-name: Diagnose login backend (temporary)
+name: Diagnose login in Android emulator (temporary)
 on:
   push:
     branches: ['claude/**']
-    paths: ['.github/workflows/diag-login.yml']
+    paths: ['.github/workflows/diag-login.yml', '.github/diag/**']
 jobs:
-  diag:
+  emu:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
-      - run: |
-          U='https://script.google.com/macros/s/AKfycby4BXBlxp8fzQrXYR1U8OGt9GVM6ysEkoMVRtskw8_zc0JRzGKcoVd_GZgdl-1NZ_zlMA/exec'
-          echo "== GET getAppSerial without token (token support?)"
-          curl -sS -L "$U?action=getAppSerial&callback=cb" | head -c 400; echo
-          echo "== GET login JSONP, dummy user"
-          curl -sS -L "$U?action=login&username=zz_diag_nobody&password=x&callback=cb" | head -c 400; echo
-          for O in https://appassets.androidplatform.net https://pritish-dev.github.io; do
-            echo "== POST login, Origin $O"
-            curl -sS -L -D - -o body.txt -H "Origin: $O" -H 'Content-Type: text/plain' \
-              --data '{"action":"login","username":"zz_diag_nobody","password":"x"}' "$U" | grep -iE '^(HTTP|location|access-control|content-type)' 
-            head -c 400 body.txt; echo
-          done
-          echo "== OPTIONS preflight"
-          curl -sS -o /dev/null -w '%{http_code}\n' -X OPTIONS -H "Origin: https://appassets.androidplatform.net" -H "Access-Control-Request-Method: POST" "$U"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: android-actions/setup-android@v3
+        with: { packages: platform-tools }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: '8.9' }
+      - name: Build branch APK
+        working-directory: room-planner-android
+        run: gradle assembleDebug --no-daemon -q && cp app/build/outputs/apk/debug/app-debug.apk ../branch.apk
+      - name: Download released APK
+        run: curl -sSL -o released.apk https://github.com/pritish-dev/4sinteriors-room-planner/releases/download/apk-latest/RoomPlanner.apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: |
+            .github/diag/try_login.sh released.apk released
+            .github/diag/try_login.sh branch.apk branch
