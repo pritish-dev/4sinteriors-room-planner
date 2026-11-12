@@ -39,10 +39,10 @@ jobs:
           sed -i "s/__BUILD__/${GITHUB_SHA:0:7}/g" _site/sw.js
           touch _site/.nojekyll
 
+      # GitHub does not let a workflow switch Pages on by itself. One-time setup:
+      # Settings → Pages → Build and deployment → Source: "GitHub Actions".
       - name: Configure Pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Upload site
         uses: actions/upload-pages-artifact@v3
@@ -52,3 +52,9 @@ jobs:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: How to fix a failed deploy
+        if: failure()
+        run: |
+          echo "::error::GitHub Pages is not switched on for this repository yet."
+          echo "::error::Open Settings → Pages, set Source to 'GitHub Actions', then re-run this workflow."
