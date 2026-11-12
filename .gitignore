@@ -1,0 +1,5 @@
+room-planner-android/.gradle/
+room-planner-android/build/
+room-planner-android/app/build/
+room-planner-android/local.properties
+*.apk

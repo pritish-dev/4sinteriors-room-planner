@@ -1,9 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="locked">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>3D Room Planner – Interio by Godrej Patia</title>
+<meta name="theme-color" content="#8a1538">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Room Planner">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 :root{--bg:#f3efe9;--ink:#2a2622;--mute:#7b736a;--accent:#8a1538;--accent2:#b3264f;--card:#fff;--line:#e3dcd2;--soft:#faf7f3}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -82,6 +89,29 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .tot{display:flex;justify-content:space-between;font-weight:700;font-size:15px;padding:12px 6px}
 .note{font-size:11px;color:var(--mute);line-height:1.45;margin:8px 0}
 .empty{color:var(--mute);text-align:center;padding:18px 0}
+/* ---------- login gate ---------- */
+#gate{display:none;position:fixed;inset:0;z-index:50;background:var(--bg);overflow-y:auto;padding:24px 16px}
+html.locked #gate{display:flex;align-items:center;justify-content:center}
+html.locked body>header,html.locked #main{visibility:hidden}
+#gate form{width:100%;max-width:360px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 20px;box-shadow:0 10px 30px rgba(0,0,0,.08)}
+#gate .logo{width:52px;height:52px;border-radius:12px;background:var(--accent);color:#fff;display:grid;place-items:center;font-weight:700;font-size:19px;margin:0 auto 12px}
+#gate h2{text-align:center;font-size:18px;text-transform:none;letter-spacing:0;color:var(--ink);margin:0 0 4px}
+#gate p{text-align:center;color:var(--mute);font-size:12.5px;margin:0 0 18px;line-height:1.45}
+#gate label{display:block;font-size:12px;color:var(--mute);margin-bottom:12px}
+#gate input{display:block;width:100%;margin-top:4px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:16px;background:var(--soft);color:var(--ink)}
+#gate .pw{position:relative}
+#gate .pw input{padding-right:62px}
+#gate .pw button{position:absolute;right:6px;bottom:6px;border:0;background:none;color:var(--accent);font-weight:600;font-size:12.5px;padding:6px 8px}
+#gateBtn{width:100%;margin-top:4px;padding:12px;font-size:15px}
+#gateBtn:disabled{opacity:.6}
+#gateErr{display:none;background:#fdecef;color:#9b1030;border-radius:9px;padding:9px 10px;font-size:12.5px;margin-bottom:12px;line-height:1.4}
+#userchip{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mute);max-width:40vw}
+#userchip span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#userchip button{border:1px solid var(--line);background:var(--soft);border-radius:8px;padding:6px 8px;font-size:12px;color:var(--ink);flex:none}
+@media(max-width:520px){#userchip span{display:none}}
+#selbar .nm{display:flex;align-items:center;gap:8px}
+#selbar .nm img{width:46px;height:34px;object-fit:cover;border-radius:6px;flex:none;border:1px solid var(--line)}
+#selbar .nm b{overflow:hidden;text-overflow:ellipsis;font-weight:600}
 @media(min-width:900px){
   #main{flex-direction:row-reverse}
   #side{width:380px;display:flex;flex-direction:column;border-right:1px solid var(--line);background:var(--card);flex:none}
@@ -101,6 +131,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
   <h1>3D Room Planner<small>Interio by Godrej Patia</small></h1>
   <div class="sp"></div>
   <div class="unit"><button data-u="ft" class="on">ft</button><button data-u="m">m</button></div>
+  <div id="userchip" style="display:none"><span></span><button id="signout" type="button">Sign out</button></div>
 </header>
 <div id="main">
   <div id="stage">
@@ -111,6 +142,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
       <button data-v="top">Top</button>
       <button data-v="inside">Inside</button>
       <button data-v="spin">360°</button>
+      <button data-v="look" id="lookBtn" title="Switch between catalogue photos and simple 3D shapes">Shapes</button>
     </div>
     <div id="toast"></div>
     <div id="selbar">
@@ -132,7 +164,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
         <div class="chips" id="chips"></div>
         <div class="grid2" style="margin-bottom:8px"><select id="subsel"></select><input id="search" placeholder="Search…" autocomplete="off"></div>
         <div id="plist"></div>
-        <p class="note">Photos and sizes are from the Interio catalogue (W × D × H in cm). “≈” means part of the size was not readable from the catalogue and is estimated.</p>
+        <p class="note">Photos and sizes are from the Interio catalogue (W × D × H in cm). “≈” means part of the size was not readable from the catalogue and is estimated. In the room, products are shown with their catalogue photo at real size — tap “Shapes” to switch to simple 3D shapes.</p>
       </div>
       <div class="pane" id="p-items"></div>
     </div>
@@ -145,16 +177,34 @@ input[type=range]{width:100%;accent-color:var(--accent)}
   </div>
 </div>
 
+<div id="gate">
+  <form id="gateForm" autocomplete="on" novalidate>
+    <div class="logo">4S</div>
+    <h2>3D Room Planner</h2>
+    <p>For 4S Interiors staff only.<br>Sign in with your <b>4S Orders app</b> username and password.</p>
+    <div id="gateErr" role="alert"></div>
+    <label>Username<input name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required></label>
+    <label class="pw">Password<input name="password" type="password" autocomplete="current-password" required><button type="button" id="gateEye">Show</button></label>
+    <button class="btn" id="gateBtn" type="submit">Sign in</button>
+  </form>
+</div>
+<script src="auth.js"></script>
 <script src="three.min.js"></script>
+<script src="GLTFLoader.js"></script>
 <script src="catalog.js"></script>
+<script src="cutouts/index.js"></script>
+<script src="models/index.js"></script>
 <script>
 /* ===================== CATALOGUE (from catalog.js / images.js) ===================== */
 const CAT=window.CAT||[],BYID={};CAT.forEach(p=>BYID[p.id]=p);
+/* CUT[id]=[aspect, colour]: a cut-out of the product from its catalogue photo (cutouts/<id>.webp).
+   MODELS[id]=file: an optional real 3D model (models/<file>.glb) supplied for the product. */
+const CUT=window.CUT||{}, MODELS=window.MODELS||{};
 const WOOD=['#5a3a2a','#6d4a33','#7a5638','#8a5f3c','#4a3226','#9a7450','#3f2d24','#70503a'];
 const FABRIC=['#6f7f8f','#8d8a84','#7a6a58','#3f5a66','#55606e','#b9a48a','#2f5d62','#8a6f5a','#4a3b35','#3c6480','#7d7f84','#9a7b4f'];
 const STEEL=['#7a2f45','#8f9aa3','#6b6e72','#b98a8a','#8a2a33','#e8e4dc','#5d6b7a','#a9b1a0'];
 function hash(s){let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))>>>0;return h}
-function defColor(p,v){const h=hash(p.name);if(['sofa','lsofa','ottoman','achair'].includes(v.t))return FABRIC[h%FABRIC.length];if(v.t==='ochair')return '#2a2b30';if(v.t==='dchair')return FABRIC[(h+3)%FABRIC.length];if(v.t==='wardrobe'&&p.room==='Home Storage')return STEEL[h%STEEL.length];return WOOD[h%WOOD.length]}
+function defColor(p,v){if(CUT[p.id]&&v.t===p.v[0].t)return CUT[p.id][1];const h=hash(p.name);if(['sofa','lsofa','ottoman','achair'].includes(v.t))return FABRIC[h%FABRIC.length];if(v.t==='ochair')return '#2a2b30';if(v.t==='dchair')return FABRIC[(h+3)%FABRIC.length];if(v.t==='wardrobe'&&p.room==='Home Storage')return STEEL[h%STEEL.length];return WOOD[h%WOOD.length]}
 function modelOf(p,v){const t=v.t,m={t},txt=p.sub+' '+p.fab.join(' ');
   if(t==='sofa'){const k=/(\d)\s*seater/i.exec(v.n);m.s=k?Math.min(4,+k[1]):Math.max(1,Math.min(4,Math.round((v.w-30)/62)))}
   if(t==='achair'){m.t='sofa';m.s=1}
@@ -220,7 +270,7 @@ function setView(v){
   if(v==='top')flyTo({tx:0,ty:0,tz:0,r:fitR()*1.05,th:0,ph:.02,fov:50});
   if(v==='inside'){const r=Math.max(.8,Math.hypot(R.w,R.l)/2-.45),k=Math.round((cam.th-Math.atan2(R.w,R.l))/Math.PI);flyTo({tx:0,ty:1.05,tz:0,r,th:Math.atan2(R.w,R.l)+k*Math.PI,ph:Math.acos(Math.min(.9,.5/r)),fov:68})}
   if(v==='spin'){spin=true}
-  document.querySelectorAll('#views button').forEach(b=>b.classList.toggle('on',b.dataset.v==='spin'&&spin));
+  document.querySelectorAll('#views button:not(#lookBtn)').forEach(b=>b.classList.toggle('on',b.dataset.v==='spin'&&spin));
 }
 
 /* ---------- materials & textures ---------- */
@@ -292,7 +342,51 @@ function updateWallVis(){
 }
 
 /* ===================== FURNITURE MODELS ===================== */
+/* ---------- catalogue look: photo cut-outs and real 3D models ---------- */
+// The photo shows the product's main piece (e.g. the dining set for its table sizes), so a
+// different piece sold with it (e.g. the matching chair) is drawn as a shape instead.
+function photoFits(it){const p=BYID[it.pid];return !!(p&&p.v[it.vi]&&p.v[it.vi].t===p.v[0].t)}
+function lookOf(it){if(MODELS[it.pid])return 'glb';if(state.look!=='shape'&&CUT[it.pid]&&photoFits(it))return 'photo';return null}
+const cutTexCache={};
+function cutTex(pid){if(!cutTexCache[pid]){const t=new T.TextureLoader().load('cutouts/'+pid+'.webp');t.encoding=T.sRGBEncoding;t.anisotropy=4;cutTexCache[pid]=t}return cutTexCache[pid]}
+let shadowTex=null;
+function contactShadow(g,w,d){
+  if(!shadowTex){shadowTex=canvasTex((c,S)=>{const r=c.createRadialGradient(S/2,S/2,0,S/2,S/2,S/2);r.addColorStop(0,'rgba(0,0,0,.42)');r.addColorStop(.6,'rgba(0,0,0,.2)');r.addColorStop(1,'rgba(0,0,0,0)');c.fillStyle=r;c.fillRect(0,0,S,S)},128);shadowTex.wrapS=shadowTex.wrapT=T.ClampToEdgeWrapping}
+  const m=new T.Mesh(new T.PlaneGeometry(w*1.15,d*1.15),new T.MeshBasicMaterial({map:shadowTex,transparent:true,depthWrite:false}));
+  m.rotation.x=-Math.PI/2;m.position.y=.003;m.renderOrder=-1;g.add(m)}
+function pickBox(g,w,h,d){const b=new T.Mesh(new T.BoxGeometry(w,h,d),new T.MeshBasicMaterial({visible:false}));b.position.y=h/2;g.add(b)}
+// The product exactly as photographed in the catalogue, cut out of its background and
+// stood in the room at its real size. It always turns to face the viewer, like a
+// life-size cardboard photo, and lies back to face the camera in the top view.
+function photoGroup(it){
+  const g=new T.Group(),ar=CUT[it.pid][0],w=it.w,d=it.d,h=it.h;
+  let H=h+.3*Math.min(d,1.2),W=H*ar;const maxW=1.2*(w+d);if(W>maxW){W=maxW;H=W/ar}
+  const geo=new T.PlaneGeometry(W,H);geo.translate(0,H/2,0);
+  const pl=new T.Mesh(geo,new T.MeshBasicMaterial({map:cutTex(it.pid),transparent:true,alphaTest:.04,side:T.DoubleSide}));
+  const piv=new T.Group();piv.rotation.order='YXZ';piv.name='bb';piv.add(pl);g.add(piv);
+  contactShadow(g,w,d);pickBox(g,w,h,d);
+  return g}
+const glbCache={};
+function glbGroup(it){
+  const g=new T.Group(),file=MODELS[it.pid];
+  const place=src=>{const o=src.clone(true);const bb=new T.Box3().setFromObject(o),sz=bb.getSize(new T.Vector3()),c=bb.getCenter(new T.Vector3());
+    const k=new T.Vector3(it.w/(sz.x||1),it.h/(sz.y||1),it.d/(sz.z||1));o.position.set(-c.x*k.x,-bb.min.y*k.y,-c.z*k.z);o.scale.copy(k);
+    o.traverse(n=>{if(n.isMesh){n.castShadow=n.receiveShadow=true}});g.add(o)};
+  if(!glbCache[file])glbCache[file]=new Promise((res,rej)=>new T.GLTFLoader().load('models/'+file,x=>res(x.scene),undefined,rej));
+  glbCache[file].then(place,()=>{delete MODELS[it.pid];syncItem(it,true)});
+  pickBox(g,it.w,it.h,it.d);return g}
+function addSel(g,w,h,d){
+  const eg=new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(w+.04,h+.04,d+.04)),new T.LineBasicMaterial({color:0x8a1538}));
+  eg.position.y=h/2;eg.name='sel';eg.visible=false;g.add(eg);
+  const ring=new T.Mesh(new T.PlaneGeometry(w+.14,d+.14),new T.MeshBasicMaterial({color:0x8a1538,transparent:true,opacity:.16,depthWrite:false}));
+  ring.rotation.x=-Math.PI/2;ring.position.y=.004;ring.name='sel';ring.visible=false;g.add(ring);
+  return g}
+function faceCamera(){
+  const tilt=cam.ph<.6?Math.PI/2-cam.ph:0;
+  itemsG.children.forEach(g=>{const piv=g.getObjectByName('bb');if(!piv)return;
+    piv.rotation.y=Math.atan2(camera.position.x-g.position.x,camera.position.z-g.position.z)-g.rotation.y;piv.rotation.x=-tilt})}
 function buildModel(it){
+  const look=lookOf(it);if(look)return addSel(look==='glb'?glbGroup(it):photoGroup(it),it.w,it.h,it.d);
   const g=new T.Group(),m=it.m,w=it.w,d=it.d,h=it.h,c=it.color;
   const main=M(c,.85), dark=M(shade(c,.72),.85), light=M(shade(c,1.18),.85), leg=M('#2b2622',.5);
   if(m.t==='sofa'||m.t==='lsofa'){
@@ -367,11 +461,7 @@ function buildModel(it){
       if(rows>1)box(g,Math.min(.12,cw*.4),.014,.02,hm,x,y,d/2+.008);else box(g,.016,.12,.02,hm,x+(i%2?-1:1)*(cw/2-.04),Math.min(y,1.0),d/2+.008)}
     if(m.mirror){const mm=box(g,w*.7,h*.4,.006,new T.MeshStandardMaterial({color:'#cfe3ec',roughness:.08,metalness:.85}),0,h*.68,d/2+.004);mm.castShadow=false}
     [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([a,b])=>box(g,.04,lg,.04,leg,a*(w/2-.05),lg/2,b*(d/2-.05)))}
-  const eg=new T.LineSegments(new T.EdgesGeometry(new T.BoxGeometry(w+.04,h+.04,d+.04)),new T.LineBasicMaterial({color:0x8a1538}));
-  eg.position.y=h/2;eg.name='sel';eg.visible=false;g.add(eg);
-  const ring=new T.Mesh(new T.PlaneGeometry(w+.14,d+.14),new T.MeshBasicMaterial({color:0x8a1538,transparent:true,opacity:.16,depthWrite:false}));
-  ring.rotation.x=-Math.PI/2;ring.position.y=.004;ring.name='sel';ring.visible=false;g.add(ring);
-  return g;
+  return addSel(g,w,h,d);
 }
 const itemObj={};
 function syncItem(it,rebuild){
@@ -394,7 +484,7 @@ function addItem(p,vi,pos,quiet){
 function removeItem(id){const g=itemObj[id];if(g){itemsG.remove(g);disposeG(g);delete itemObj[id]}state.items=state.items.filter(i=>i.id!==id);if(selId===id)select(null);save();renderItems()}
 function getItem(id){return state.items.find(i=>i.id===id)}
 function select(id){selId=id;state.items.forEach(it=>syncItem(it));const it=getItem(id),sb=document.getElementById('selbar');
-  sb.classList.toggle('show',!!it);if(it)sb.querySelector('.nm').textContent=it.name;
+  sb.classList.toggle('show',!!it);if(it){const im=(window.IMG||{})[it.pid];sb.querySelector('.nm').innerHTML=(im?`<img src="${im}" alt="">`:'')+`<b>${esc(it.name)}</b>`}
   document.getElementById('hint').style.display=it?'none':'';if(tab==='items')renderItems()}
 
 /* ===================== INTERACTION ===================== */
@@ -405,7 +495,7 @@ function pickItem(e){ray.setFromCamera(ndc(e),camera);const hits=ray.intersectOb
 function floorPt(e){ray.setFromCamera(ndc(e),camera);const v=new T.Vector3();return ray.ray.intersectPlane(floorPlane,v)?v:null}
 cv.addEventListener('pointerdown',e=>{
   cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});anim=null;
-  if(spin){spin=false;document.querySelectorAll('#views button').forEach(b=>b.classList.remove('on'))}
+  if(spin){spin=false;document.querySelectorAll('#views button:not(#lookBtn)').forEach(b=>b.classList.remove('on'))}
   if(ptrs.size===1){down={x:e.clientX,y:e.clientY};moved=false;
     const it=(e.button===0&&!e.shiftKey)?pickItem(e):null;
     if(it){select(it.id);const p=floorPt(e);dragOff=p?{x:it.x-p.x,z:it.z-p.z}:{x:0,z:0};mode='drag'}
@@ -434,7 +524,10 @@ document.getElementById('selbar').addEventListener('click',e=>{const a=e.target.
   if(a==='dup'){const n=addItem(BYID[it.pid],it.vi,{x:it.x+.3,z:it.z+.3,rot:it.rot},true);if(!n)return;Object.assign(n,{w:it.w,d:it.d,h:it.h,color:it.color,m:{...it.m}});clampItem(n);syncItem(n,true);select(n.id);toast('Copied');save();renderItems();return}
   if(a==='del'){removeItem(it.id);return}
   clampItem(it);syncItem(it);save();if(tab==='items')renderItems()});
-document.getElementById('views').addEventListener('click',e=>{const v=e.target.dataset.v;if(v)setView(v)});
+document.getElementById('views').addEventListener('click',e=>{const v=e.target.dataset.v;if(v==='look'){setLook(state.look==='shape'?'photo':'shape');return}if(v)setView(v)});
+function updateLookBtn(){const b=document.getElementById('lookBtn');b.textContent=state.look==='shape'?'Photos':'Shapes'}
+function setLook(l){state.look=l;state.items.forEach(it=>syncItem(it,true));updateLookBtn();save();
+  toast(l==='shape'?'Showing simple 3D shapes':'Showing catalogue photos');if(tab==='items')renderItems()}
 
 /* ===================== UI PANELS ===================== */
 const $=s=>document.querySelector(s);
@@ -544,7 +637,7 @@ function renderItems(){
     ${it.m.t==='lsofa'?'<button class="btn ghost" data-flip="1" style="margin-top:10px">Switch chaise to other side</button>':''}
     <div class="f" style="margin-top:8px">Colour / finish</div><div class="sw" style="margin-bottom:0">${[...new Set([it.color,...ITEMCOL])].map(c=>`<button data-col="${c}" style="background:${c}" class="${it.color===c?'on':''}" aria-label="colour"></button>`).join('')}</div>
    </div>`:(state.items.length?'<p class="note">Tap an item above (or in the 3D view) to edit its size, rotation and colour.</p>':''))+
-  `<p class="note">Sizes come from the Interio catalogue (W × D × H). 3D shapes are simplified models of each furniture type, drawn to those sizes.</p>`;
+  `<p class="note">Sizes come from the Interio catalogue (W × D × H). In photo view each product is its own catalogue photo, cut out and stood at real size; it turns to face you, so “rotate” changes its floor space, not the photo. In shapes view products are simple 3D models in the catalogue colour.</p>`;
 }
 $('#p-items').addEventListener('click',e=>{const d=e.target.closest('[data-del]');if(d){removeItem(+d.dataset.del);return}
   if(e.target.closest('[data-flip]')){const it=getItem(selId);if(it){it.m.side=-(it.m.side||1);syncItem(it,true);save()}return}
@@ -576,11 +669,12 @@ function tick(now){
   const dt=Math.min(.05,(now-last)/1000);last=now;
   if(anim){anim.t=Math.min(1,anim.t+dt/.6);const e=1-Math.pow(1-anim.t,3);for(const k of ['tx','ty','tz','r','th','ph','fov'])cam[k]=anim.from[k]+(anim.to[k]-anim.from[k])*e;if(anim.t>=1)anim=null}
   if(spin)cam.th+=dt*.35;
-  applyCam();updateWallVis();renderer.render(scene,camera);requestAnimationFrame(tick);
+  applyCam();updateWallVis();faceCamera();renderer.render(scene,camera);requestAnimationFrame(tick);
 }
 /* ===================== START ===================== */
 const restored=load();
 document.querySelectorAll('.unit button').forEach(b=>b.classList.toggle('on',b.dataset.u===state.unit));
+if(state.look!=='shape')state.look='photo';updateLookBtn();
 resize();
 buildRoom();
 if(!restored)sample();else state.items.forEach(it=>syncItem(it));
@@ -589,6 +683,10 @@ setTab(wide()?'cat':null);
 window.__planner={state:()=>state,cam,setView,addItem,CAT,select};
 requestAnimationFrame(tick);
 </script>
-<script async src="images.js"></script>
+<script>
+/* Catalogue photos load only after sign-in. */
+AUTH.whenUnlocked(function(){if(window.IMG)return;const s=document.createElement('script');s.src='images.js';s.async=true;document.body.appendChild(s)});
+if('serviceWorker' in navigator&&location.protocol==='https:'&&!/androidplatform\.net$/.test(location.hostname))navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
 </body>
 </html>
