@@ -34,9 +34,9 @@
   function readSession() {
     try {
       var s = JSON.parse(ls(KEY) || 'null');
-      if (!s || !s.token) return null;
-      var p = decodeToken(s.token);
-      if (!p || !p.exp || Date.now() > p.exp) return null;
+      if (!s) return null;
+      var exp = s.token ? (decodeToken(s.token) || {}).exp : s.exp;
+      if (!exp || Date.now() > exp) return null;
       return s;
     } catch (e) { return null; }
   }
@@ -87,11 +87,23 @@
     });
   }
 
+  // Try a normal POST first; if the browser/WebView blocks it (CORS, redirects),
+  // fall back to the JSONP GET login the backend also accepts.
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function loginAt(url, body) {
+    var viaGet = function () { return jsonp(url, { action: 'login', username: body.username, password: body.password }, 45000); };
+    // POST (like the 4S Orders app), then GET, then both again after a pause — the
+    // backend can take 20-30 s to wake up and phone networks drop the odd request.
+    return post(url, body)
+      .catch(viaGet)
+      .catch(function () { return wait(1500).then(function () { return post(url, body); }); })
+      .catch(function () { return wait(2500).then(viaGet); });
+  }
   function login(username, password) {
     var body = { action: 'login', username: username, password: password };
-    return post(apiUrl(), body).catch(function (e) {
-      // Network failure: the backend may have a new URL — look it up and retry once.
-      return refreshApiUrl().then(function (u) { return post(u, body); }, function () { throw e; });
+    return loginAt(apiUrl(), body).catch(function (e) {
+      // Still unreachable: the backend may have a new URL — look it up and retry once.
+      return refreshApiUrl().then(function (u) { return loginAt(u, body); }, function () { throw e; });
     });
   }
 
@@ -119,7 +131,7 @@
   }
 
   function verifyInBackground(s) {
-    if (navigator.onLine === false) return;
+    if (navigator.onLine === false || !s.token) return;
     jsonp(apiUrl(), { action: 'getAppSerial', token: s.token }, 30000).then(function (d) {
       if (d && d.ok === false && d.code === 'AUTH_REQUIRED') lock('Your session has ended — please sign in again.');
     }, function () { /* offline / backend unreachable: keep working until the token expires */ });
@@ -142,15 +154,17 @@
       if (!u || !p) { setErr('Enter your username and password.'); return; }
       setErr(''); btn.disabled = true; btn.textContent = 'Signing in…';
       login(u, p).then(function (res) {
-        if (res && res.ok && res.token) {
-          var s = { token: res.token, user: res.user || { name: u }, at: Date.now() };
+        if (res && res.ok) {
+          // exp is only used when the backend returns no session token.
+          var s = { token: res.token || '', user: res.user || { name: u }, at: Date.now(), exp: Date.now() + 30 * 864e5 };
           ls(KEY, JSON.stringify(s));
           unlock(s);
         } else {
           setErr((res && res.error) || 'Sign in failed. Check your username and password.');
         }
-      }, function () {
-        setErr('Could not reach the server. Check the internet connection and try again.');
+      }, function (e) {
+        setErr('Could not reach the 4S Orders server. Check the internet connection and try again.' +
+          (e && e.message ? ' (' + e.message + ')' : ''));
       }).then(function () { btn.disabled = false; btn.textContent = 'Sign in'; });
     });
 
