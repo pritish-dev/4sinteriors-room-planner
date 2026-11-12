@@ -1,25 +1,14 @@
 #!/bin/bash
-# Usage: try_login.sh <apk> <label>. Installs the APK, signs in with a dummy user and
-# prints what the login screen shows plus WebView console output.
-set -x
+# Usage: try_login.sh <apk> <label>. Installs the APK, signs in with a dummy user via the
+# WebView debugger and prints what the login screen reports.
 APK=$1; L=$2
 adb uninstall in.foursinteriors.roomplanner >/dev/null 2>&1
-adb install -r "$APK" || exit 0
-adb logcat -c
-adb shell am start -n in.foursinteriors.roomplanner/.MainActivity
-sleep 25
-adb shell uiautomator dump /sdcard/ui.xml >/dev/null; adb pull /sdcard/ui.xml ui_$L.xml >/dev/null
-python3 .github/diag/fields.py ui_$L.xml text; python3 .github/diag/fields.py ui_$L.xml > fields.txt; cat fields.txt
-U=$(sed -n 1p fields.txt); P=$(sed -n 2p fields.txt); B=$(sed -n 3p fields.txt)
-adb shell input tap $U; sleep 1; adb shell input text zzdiagnobody; sleep 1
-adb shell input tap $P; sleep 1; adb shell input text wrongpass; sleep 1
-adb shell input keyevent 111; sleep 1
-adb shell uiautomator dump /sdcard/ui.xml >/dev/null; adb pull /sdcard/ui.xml ui2_$L.xml >/dev/null
-B=$(python3 .github/diag/fields.py ui2_$L.xml | sed -n 3p)
-adb shell input tap $B
-sleep 30
-adb shell uiautomator dump /sdcard/ui.xml >/dev/null; adb pull /sdcard/ui.xml ui3_$L.xml >/dev/null
-echo "===== [$L] TEXT ON SCREEN AFTER SIGN-IN ====="
-python3 .github/diag/fields.py ui3_$L.xml text
-echo "===== [$L] WEBVIEW CONSOLE / ERRORS ====="
-adb logcat -d | grep -iE "chromium|console|roomplanner|AndroidRuntime" | tail -40
+adb install -r "$APK" >/dev/null || { echo "install failed"; exit 0; }
+adb shell am start -n in.foursinteriors.roomplanner/.MainActivity >/dev/null
+sleep 20
+PID=$(adb shell pidof in.foursinteriors.roomplanner | tr -d '\r')
+SOCK=$(adb shell cat /proc/net/unix | grep -o "webview_devtools_remote_[0-9]*" | head -1)
+echo "[$L] pid=$PID socket=$SOCK"
+adb forward --remove-all; adb forward tcp:9222 localabstract:$SOCK
+echo "===== [$L] RESULT ====="
+node .github/diag/cdp.js || true
