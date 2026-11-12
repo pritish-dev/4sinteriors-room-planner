@@ -21,7 +21,7 @@ jobs:
       - name: Download released APK
         run: curl -sSL -o released.apk https://github.com/pritish-dev/4sinteriors-room-planner/releases/download/apk-latest/RoomPlanner.apk
       - name: Install Playwright
-        run: npm i playwright@1.48.2 --no-save
+        run: npm i ws@8.18.0 --no-save
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
