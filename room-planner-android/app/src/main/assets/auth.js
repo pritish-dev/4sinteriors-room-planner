@@ -89,10 +89,15 @@
 
   // Try a normal POST first; if the browser/WebView blocks it (CORS, redirects),
   // fall back to the JSONP GET login the backend also accepts.
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   function loginAt(url, body) {
-    return post(url, body).catch(function () {
-      return jsonp(url, { action: 'login', username: body.username, password: body.password }, 45000);
-    });
+    var viaGet = function () { return jsonp(url, { action: 'login', username: body.username, password: body.password }, 45000); };
+    // POST (like the 4S Orders app), then GET, then both again after a pause — the
+    // backend can take 20-30 s to wake up and phone networks drop the odd request.
+    return post(url, body)
+      .catch(viaGet)
+      .catch(function () { return wait(1500).then(function () { return post(url, body); }); })
+      .catch(function () { return wait(2500).then(viaGet); });
   }
   function login(username, password) {
     var body = { action: 'login', username: username, password: password };
@@ -157,8 +162,9 @@
         } else {
           setErr((res && res.error) || 'Sign in failed. Check your username and password.');
         }
-      }, function () {
-        setErr('Could not reach the server. Check the internet connection and try again.');
+      }, function (e) {
+        setErr('Could not reach the 4S Orders server. Check the internet connection and try again.' +
+          (e && e.message ? ' (' + e.message + ')' : ''));
       }).then(function () { btn.disabled = false; btn.textContent = 'Sign in'; });
     });
 
