@@ -2,6 +2,10 @@ package in.foursinteriors.roomplanner;
 
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
+import android.content.ClipData;
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.NetworkCapabilities;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.net.Uri;
@@ -113,7 +117,7 @@ public class MainActivity extends Activity {
         });
 
         setContentView(web);
-        if (savedInstanceState == null) web.loadUrl(LIVE);
+        if (savedInstanceState == null) { if (online()) web.loadUrl(LIVE); else { onLocal = true; web.loadUrl(LOCAL); } }
         else web.restoreState(savedInstanceState);
     }
 
@@ -204,6 +208,7 @@ public class MainActivity extends Activity {
                 Intent i = new Intent(Intent.ACTION_SEND);
                 i.setType(mime);
                 i.putExtra(Intent.EXTRA_STREAM, uri);
+                i.setClipData(ClipData.newRawUri(name, uri));
                 if (text != null && !text.isEmpty()) i.putExtra(Intent.EXTRA_TEXT, text);
                 if (phone != null && !phone.isEmpty()) i.putExtra("jid", phone + "@s.whatsapp.net");
                 i.setPackage(pkg);
@@ -218,6 +223,7 @@ public class MainActivity extends Activity {
             Intent i = new Intent(Intent.ACTION_SEND);
             i.setType(mime);
             i.putExtra(Intent.EXTRA_STREAM, uri);
+            i.setClipData(ClipData.newRawUri(name, uri));
             if (email != null && !email.isEmpty()) i.putExtra(Intent.EXTRA_EMAIL, new String[]{email});
             i.putExtra(Intent.EXTRA_SUBJECT, subject);
             i.putExtra(Intent.EXTRA_TEXT, text);
@@ -234,6 +240,7 @@ public class MainActivity extends Activity {
         Intent i = new Intent(Intent.ACTION_SEND);
         i.setType(mime);
         i.putExtra(Intent.EXTRA_STREAM, uri);
+        i.setClipData(ClipData.newRawUri("file", uri));
         i.putExtra(Intent.EXTRA_SUBJECT, subject);
         i.putExtra(Intent.EXTRA_TEXT, text);
         if (email != null && !email.isEmpty()) i.putExtra(Intent.EXTRA_EMAIL, new String[]{email});
@@ -258,6 +265,16 @@ public class MainActivity extends Activity {
     }
 
     private void toast(String m) { runOnUiThread(() -> Toast.makeText(this, m, Toast.LENGTH_LONG).show()); }
+
+    // Live vs built-in copy is decided only when the app starts — never on returning from
+    // WhatsApp/email, so a design in progress is never reloaded.
+    private boolean online() {
+        try {
+            ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            NetworkCapabilities c = cm.getNetworkCapabilities(cm.getActiveNetwork());
+            return c != null && c.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED);
+        } catch (Exception e) { return false; }
+    }
 
     @Override
     protected void onSaveInstanceState(Bundle out) {
